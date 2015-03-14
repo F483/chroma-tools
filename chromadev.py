@@ -18,10 +18,7 @@ def run_shell_cmd(path, cmd):
     cmd.split(), cwd=path, stdout=subprocess.PIPE, stderr=subprocess.PIPE
   ).communicate()
   if err:
-    print cmd
-    print path
-    print err
-    sys.exit("Error running command: '%s' at '%s'\n%s" % (cmd, path, err))
+    sys.exit("Error running command: '%s' at '%s'" % (cmd, path))
   return out
 
 def load_package_info(path):
