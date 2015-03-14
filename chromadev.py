@@ -67,10 +67,10 @@ def validate_repository(path, remote=None):
     pass # TODO validate can push to remote using ssh key
   if has_uncommitted_changes(path):
     sys.exit("Uncommitted changes for package '%s'!" % path)
-  if not on_development_branch(path):
-    sys.exit("Not on 'development' branch for package '%s'!" % path)
+  if not on_develop_branch(path):
+    sys.exit("Not on 'develop' branch for package '%s'!" % path)
   # TODO master must be on last tagged build
-  # TODO development branch must include all master commits
+  # TODO develop branch must include all master commits
   package_info = load_package_info(path)
   if not package_info:
     sys.exit("Could not load package data for '%s'!" % path)
@@ -109,10 +109,10 @@ def last_tagged_version_matches_package(path, version_info):
   pattern = r"^v%(major)s\.%(minor)s\.%(build)s" % version_info
   return bool(re.match(pattern, last_tagged))
 
-def on_development_branch(path):
+def on_develop_branch(path):
   out = run_shell_cmd(path, "git branch")
-  is_development = lambda x: re.match(r"^\* development$", x)
-  return bool(filter(is_development, out.split('\n')))
+  is_develop = lambda x: re.match(r"^\* develop$", x)
+  return bool(filter(is_develop, out.split('\n')))
 
 def has_uncommitted_changes(path):
   return bool(run_shell_cmd(path, 'git status --porcelain'))
@@ -139,10 +139,10 @@ def push_command(path, remote):
   if cache[package_info['name']]['pushed']:
     return
 
-  # push master and development branches as well as tags
+  # push master and develop branches as well as tags
   print "Pushing: %s -> %s" % (package_info['name'], remote)
   run_shell_cmd(path, 'git push --quiet %s master' % remote)
-  run_shell_cmd(path, 'git push --quiet %s development' % remote)
+  run_shell_cmd(path, 'git push --quiet %s develop' % remote)
   run_shell_cmd(path, 'git push --quiet --tags %s ' % remote)
   cache[package_info['name']]['pushed'] = True
 
@@ -165,10 +165,10 @@ def fetch_command(path, remote):
   if cache[package_info['name']]['fetched']:
     return
 
-  # fetch master and development branches as well as tags
+  # fetch master and develop branches as well as tags
   print "fetching %s from %s" % (package_info['name'], remote)
   run_shell_cmd(path, 'git fetch --quiet %s master' % remote)
-  run_shell_cmd(path, 'git fetch --quiet %s development' % remote)
+  run_shell_cmd(path, 'git fetch --quiet %s develop' % remote)
   run_shell_cmd(path, 'git fetch --quiet --tags %s ' % remote)
   cache[package_info['name']]['fetched'] = True
 
@@ -248,9 +248,9 @@ def save_package_info(path, package_info):
 
 def merge_and_tag_build(path, version):
   run_shell_cmd(path, 'git checkout --quiet master')
-  run_shell_cmd(path, 'git merge --quiet development')
+  run_shell_cmd(path, 'git merge --quiet develop')
   run_shell_cmd(path, 'git tag -a v%s -m "%s"' % (version, version))
-  run_shell_cmd(path, 'git checkout --quiet development')
+  run_shell_cmd(path, 'git checkout --quiet develop')
   run_shell_cmd(path, 'git merge --quiet master')
 
 
@@ -283,7 +283,7 @@ def add_build_command(subparsers):
 
 def add_fetch_command(subparsers):
   build_parser = subparsers.add_parser(
-    'fetch', help="fetch package development/master branches and tags"
+    'fetch', help="fetch package develop/master branches and tags"
   )
   build_parser.add_argument("path", help="path to root package")
   build_parser.add_argument(
@@ -293,7 +293,7 @@ def add_fetch_command(subparsers):
 
 def add_push_command(subparsers):
   build_parser = subparsers.add_parser(
-    'push', help="push package development/master branches and tags"
+    'push', help="push package develop/master branches and tags"
   )
   build_parser.add_argument("path", help="path to root package")
   build_parser.add_argument(
