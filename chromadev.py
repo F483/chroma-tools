@@ -18,6 +18,9 @@ def run_shell_cmd(path, cmd):
     cmd.split(), cwd=path, stdout=subprocess.PIPE, stderr=subprocess.PIPE
   ).communicate()
   if err:
+    print cmd
+    print path
+    print err
     sys.exit("Error running command: '%s' at '%s'\n%s" % (cmd, path, err))
   return out
 
@@ -95,7 +98,7 @@ def validate_repository(path, remote=None):
 def init_cache(path, name, package_info, version_info):
   global cache
   cache[name] = {
-    'path' : path, 'built' : None, 'pushed' : None,
+    'path' : path, 'built' : None, 'pushed' : None, 'fetched' : None,
     'validated' : {
       'package_info' : package_info, 'version_info' : version_info
     }
@@ -142,6 +145,32 @@ def push_command(path, remote):
   run_shell_cmd(path, 'git push --quiet %s development' % remote)
   run_shell_cmd(path, 'git push --quiet --tags %s ' % remote)
   cache[package_info['name']]['pushed'] = True
+
+
+########
+# fetch #
+########
+
+def fetch_command(path, remote):
+  global cache
+  path = os.path.realpath(path)
+  validate_command(path) # validate everything before fetching
+
+  # fetch dependencies first
+  package_info = load_package_info(path)
+  paths = get_chroma_dependencie_paths(path, package_info)
+  map(lambda p: fetch_command(p, remote), paths)
+
+  # chack if already fetched
+  if cache[package_info['name']]['fetched']:
+    return
+
+  # fetch master and development branches as well as tags
+  print "fetching %s from %s" % (package_info['name'], remote)
+  run_shell_cmd(path, 'git fetch --quiet %s master' % remote)
+  run_shell_cmd(path, 'git fetch --quiet %s development' % remote)
+  run_shell_cmd(path, 'git fetch --quiet --tags %s ' % remote)
+  cache[package_info['name']]['fetched'] = True
 
 
 #########
@@ -236,14 +265,6 @@ def setup_command(path, chromadir):
   print "not implemented yet ..."
 
 
-#########
-# pull #
-#########
-
-def pull_command(path, remote):
-  print "not implemented yet ..."
-
-
 #######
 # cli #
 #######
@@ -260,9 +281,9 @@ def add_build_command(subparsers):
   )
   build_parser.add_argument("path", help="path to root package")
 
-def add_pull_command(subparsers):
+def add_fetch_command(subparsers):
   build_parser = subparsers.add_parser(
-    'pull', help="pull package development/master branches and tags"
+    'fetch', help="fetch package development/master branches and tags"
   )
   build_parser.add_argument("path", help="path to root package")
   build_parser.add_argument(
@@ -296,7 +317,7 @@ def get_arguments():
   add_setup_command(subparsers)
   add_validate_command(subparsers)
   add_build_command(subparsers)
-  add_pull_command(subparsers)
+  add_fetch_command(subparsers)
   add_push_command(subparsers)
   return vars(parser.parse_args())
 
@@ -305,7 +326,7 @@ if __name__ == "__main__":
   commands = {
     "validate" : validate_command,
     "build" : build_command,
-    "pull" : pull_command,
+    "fetch" : fetch_command,
     "push" : push_command,
     "setup" : setup_command,
   }
