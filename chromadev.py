@@ -14,10 +14,12 @@ cache = {}
 # }
 
 def run_shell_cmd(path, cmd):
+  path = os.path.realpath(path)
   out, err = subprocess.Popen(
     cmd.split(), cwd=path, stdout=subprocess.PIPE, stderr=subprocess.PIPE
   ).communicate()
   if err:
+    print err
     sys.exit("Error running command: '%s' at '%s'" % (cmd, path))
   return out
 
@@ -25,7 +27,8 @@ def load_package_info(path):
   try:
     with open(os.path.join(path, "package.json"), 'r') as infile:
       return json.load(infile)
-  except:
+  except Exception as e:
+    print e
     return None
 
 def get_version_info(package_info):
@@ -39,7 +42,7 @@ def is_chroma_repository(url):
   return is_bitbucket or is_github
 
 def get_chroma_dependencie_paths(path, package_info):
-  items = package_info["dependencies"].items()
+  items = package_info.get("dependencies", {}).items()
   items = filter(lambda item: is_chroma_repository(item[1]), items)
   names = map(lambda item: item[0], items)
   return map(lambda name: os.path.join(path, 'node_modules', name), names)
@@ -83,7 +86,7 @@ def validate_repository(path, remote=None):
   if not ('repository' in package_info and 'url' in package_info["repository"]):
     sys.exit("No repository.url for package '%s'!" % path)
   if not is_chroma_repository(package_info["repository"]["url"]):
-    sys.exit("Package '%s' not a chroma repository!" % path)
+    sys.exit("Package '%s' not a chromaway repository!" % path)
   if not last_tagged_version_matches_package(path, version_info):
     sys.exit("Last tagged version does not match package for '%s'!" % path)
   # TODO validate all required dependencies installed
@@ -137,9 +140,11 @@ def push_command(path, remote):
     return
 
   # push master and develop branches as well as tags
-  print "Pushing: %s -> %s" % (package_info['name'], remote)
+  print "Pushing: %s -> %s (master)" % (package_info['name'], remote)
   run_shell_cmd(path, 'git push --quiet %s master' % remote)
+  print "Pushing: %s -> %s (develop)" % (package_info['name'], remote)
   run_shell_cmd(path, 'git push --quiet %s develop' % remote)
+  print "Pushing: %s -> %s (tags)" % (package_info['name'], remote)
   run_shell_cmd(path, 'git push --quiet --tags %s ' % remote)
   cache[package_info['name']]['pushed'] = True
 
@@ -256,10 +261,31 @@ def merge_and_tag_build(path, version):
 #########
 
 def setup_command(path, chromadir):
-  # TODO rm outdated node_modules
-  # TODO npm install
-  # TODO symlink local chroma packages
-  print "not implemented yet ..."
+  symlink_dependencies(path, chromadir)
+  # TODO rm outdated or all node_modules
+  run_shell_cmd(path, 'npm install') # install required npm packages
+
+def symlink_dependencies(path, chromadir):
+  path = os.path.realpath(path)
+  package_info = load_package_info(path)
+  paths = get_chroma_dependencie_paths(path, package_info)
+  map(lambda path: symlink_dependencie(path, chromadir), paths)
+  map(lambda path: symlink_dependencies(path, chromadir), paths)
+
+def symlink_dependencie(dependencie_path, chromadir):
+  dependencie_path = os.path.realpath(dependencie_path)
+  chromadir = os.path.realpath(chromadir)
+  dependencie_dir, dependencie_name = os.path.split(dependencie_path)
+  if dependencie_dir == chromadir:
+    print "Skipping '%s', already in chromadir." %  dependencie_name
+    return # already at correct location
+  target = os.path.join(chromadir, dependencie_name)
+  # FIXME error if target version is behind required version
+  if not os.path.exists(target):
+    sys.exit("Required chromaway project does not exist '%s'!" % target)
+  run_shell_cmd(os.getcwd(), 'mkdir -p %s' % dependencie_dir)
+  run_shell_cmd(os.getcwd(), 'rm -rf %s' % dependencie_path)
+  run_shell_cmd(os.getcwd(), 'ln -s %s %s' % (target, dependencie_path))
 
 
 #######
@@ -300,12 +326,12 @@ def add_push_command(subparsers):
 
 def add_setup_command(subparsers):
   build_parser = subparsers.add_parser(
-    'setup', help="install dependencies and symlink chroma packages"
+    'setup', help="install dependencies and symlink chromaway packages"
   )
   build_parser.add_argument("path", help="path to root package")
   build_parser.add_argument(
     "--chromadir", default=os.getcwd(),
-    help="location of chroma packages (default=cwd)"
+    help="location of chromaway packages (default=cwd)"
   )
 
 def get_arguments():
