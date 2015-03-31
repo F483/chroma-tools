@@ -37,8 +37,8 @@ def get_version_info(package_info):
   return match.groupdict() if match else None
 
 def is_chroma_repository(url):
-  is_bitbucket = bool(re.match(r".*bitbucket\.org/chromawallet.*", url))
-  is_github = bool(re.match(r".*github\.com/chromaway.*", url))
+  is_bitbucket = bool(re.match(r".*bitbucket\.org.chromawallet.*", url))
+  is_github = bool(re.match(r".*github\.com.chromaway.*", url))
   return is_bitbucket or is_github
 
 def get_chroma_dependencie_paths(path, package_info):
