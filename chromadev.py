@@ -263,7 +263,7 @@ def merge_and_tag_build(path, version):
 def setup_command(path, chromadir):
   symlink_dependencies(path, chromadir)
   # TODO rm outdated or all node_modules
-  run_shell_cmd(path, 'npm install') # install required npm packages
+  # FIXME run_shell_cmd(path, 'npm install') # install required npm packages
 
 def symlink_dependencies(path, chromadir):
   path = os.path.realpath(path)
