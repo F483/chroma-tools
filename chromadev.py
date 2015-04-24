@@ -13,12 +13,12 @@ cache = {}
 #   ...
 # }
 
-def run_shell_cmd(path, cmd):
+def run_shell_cmd(path, cmd, ignore_errors=False):
   path = os.path.realpath(path)
   out, err = subprocess.Popen(
     cmd.split(), cwd=path, stdout=subprocess.PIPE, stderr=subprocess.PIPE
   ).communicate()
-  if err:
+  if err and not ignore_errors:
     print err
     sys.exit("Error running command: '%s' at '%s'" % (cmd, path))
   return out
@@ -261,18 +261,18 @@ def merge_and_tag_build(path, version):
 #########
 
 def setup_command(path, chromadir):
-  symlink_dependencies(path, chromadir)
-  # TODO rm outdated or all node_modules
-  # FIXME run_shell_cmd(path, 'npm install') # install required npm packages
-
-def symlink_dependencies(path, chromadir):
   path = os.path.realpath(path)
+  if not os.path.exists(path):
+    sys.exit("Required chromaway project does not exist '%s'!" % path)
   package_info = load_package_info(path)
-  paths = get_chroma_dependencie_paths(path, package_info)
-  map(lambda path: symlink_dependencie(path, chromadir), paths)
-  map(lambda path: symlink_dependencies(path, chromadir), paths)
+  dependencie_paths = get_chroma_dependencie_paths(path, package_info)
+  map(lambda path: setup_command(path, chromadir), dependencie_paths)
+  print "setting up: %s" % path
+  run_shell_cmd(path, 'rm -rf node_modules')
+  run_shell_cmd(path, 'npm install', ignore_errors=True) # FIXME why errors?
+  map(lambda path: symlink(path, chromadir), dependencie_paths)
 
-def symlink_dependencie(dependencie_path, chromadir):
+def symlink(dependencie_path, chromadir):
   dependencie_path = os.path.realpath(dependencie_path)
   chromadir = os.path.realpath(chromadir)
   dependencie_dir, dependencie_name = os.path.split(dependencie_path)
