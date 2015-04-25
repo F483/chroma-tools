@@ -272,6 +272,19 @@ def setup_command(path, chromadir):
   run_shell_cmd(path, 'npm install', ignore_errors=True) # FIXME why errors?
   map(lambda path: symlink(path, chromadir), dependencie_paths)
 
+
+###########
+# symlink #
+###########
+
+def symlink_command(path, chromadir):
+  path = os.path.realpath(path)
+  if not os.path.exists(path):
+    sys.exit("Required chromaway project does not exist '%s'!" % path)
+  package_info = load_package_info(path)
+  dependencie_paths = get_chroma_dependencie_paths(path, package_info)
+  map(lambda path: symlink(path, chromadir), dependencie_paths)
+
 def symlink(dependencie_path, chromadir):
   dependencie_path = os.path.realpath(dependencie_path)
   chromadir = os.path.realpath(chromadir)
@@ -334,10 +347,21 @@ def add_setup_command(subparsers):
     help="location of chromaway packages (default=cwd)"
   )
 
+def add_symlink_command(subparsers):
+  build_parser = subparsers.add_parser(
+    'symlink', help="symlink chromaway packages"
+  )
+  build_parser.add_argument("path", help="path to root package")
+  build_parser.add_argument(
+    "--chromadir", default=os.getcwd(),
+    help="location of chromaway packages (default=cwd)"
+  )
+
 def get_arguments():
   parser = argparse.ArgumentParser()
   subparsers = parser.add_subparsers(title='Commands', dest='command')
   add_setup_command(subparsers)
+  add_symlink_command(subparsers)
   add_validate_command(subparsers)
   add_build_command(subparsers)
   add_fetch_command(subparsers)
@@ -352,6 +376,7 @@ if __name__ == "__main__":
     "fetch" : fetch_command,
     "push" : push_command,
     "setup" : setup_command,
+    "symlink" : symlink_command,
   }
   command = commands[args.pop("command")]
   command(**args)
